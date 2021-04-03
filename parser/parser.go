@@ -178,6 +178,8 @@ LOOP:
 			if err != nil {
 				return nil, err
 			}
+		case "dir", "workingdirectory":
+			cmd.Dir = f.val
 		default:
 			return nil, fmt.Errorf("unknown field %q in command block.", f.key)
 		}

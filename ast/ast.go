@@ -9,6 +9,7 @@ import (
 type Command struct {
 	Command               string
 	Args                  []string
+	Dir                   string
 	Name                  string
 	Stdin, Stdout, Stderr string
 	Sync                  bool
@@ -21,6 +22,7 @@ func (a Command) Equal(b Command) bool {
 		a.Command != b.Command ||
 		a.Stdin != b.Stdin ||
 		a.Stdout != b.Stdout ||
+		a.Dir != b.Dir ||
 		a.Sync != b.Sync ||
 		a.Every != b.Every ||
 		a.Times != b.Times ||
@@ -40,6 +42,9 @@ func (c Command) GoString() string {
 	fmt.Fprintf(&buff, "Command{\n\tCommand: %q,\n", c.Command)
 	if len(c.Args) > 0 {
 		fmt.Fprintf(&buff, "\tArgs: %v,\n", c.Args)
+	}
+	if c.Dir != "" {
+		fmt.Fprintf(&buff, "\tDir: %q,\n", c.Dir)
 	}
 	if c.Name != "" {
 		fmt.Fprintf(&buff, "\tName: %q,\n", c.Name)
