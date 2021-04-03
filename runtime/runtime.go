@@ -107,15 +107,21 @@ func CreateProcess(cmd *ast.Command) (*Process, error) {
 		}
 	}
 
-	// certain amount of times
-	if cmd.Times > 0 {
-		p.timesRunFunc()
-		return p, nil
-	}
-
 	// monotonic
 	if cmd.Every > 0 {
 		p.monotonicRunFunc()
+		return p, nil
+	}
+
+	// monotonic and certain amount of iterations
+	if cmd.Every > 0 && cmd.Times > 0 {
+		p.monotonicTimesRunFunc()
+		return p, nil
+	}
+
+	// certain amount of times
+	if cmd.Times > 0 {
+		p.timesRunFunc()
 		return p, nil
 	}
 
@@ -183,6 +189,34 @@ func (p *Process) monotonicRunFunc() {
 		}
 		go func() {
 			for {
+				go run()
+				select {
+				case <-ticker.C:
+					p.Refresh()
+				case err = <-done:
+					if err != nil {
+						p.LogError(err)
+						return
+					}
+					p.Refresh()
+				}
+			}
+		}()
+		return
+	}
+}
+
+func (p *Process) monotonicTimesRunFunc() {
+	p.Run = func() (err error) {
+		defer p.Kill()
+		ticker := time.NewTicker(p.Command.Every)
+		defer ticker.Stop()
+		done := make(chan error, 5)
+		run := func() {
+			done <- p.Cmd.Run()
+		}
+		go func() {
+			for i := 0; i < p.Command.Times; i++ {
 				go run()
 				select {
 				case <-ticker.C:

@@ -149,6 +149,7 @@ LOOP:
 			return nil, err
 		}
 	}
+	syncSet := false
 
 	for _, f := range fields {
 		switch strings.ToLower(f.key) {
@@ -166,6 +167,7 @@ LOOP:
 				return nil, err
 			}
 		case "sync":
+			syncSet = true
 			switch strings.ToLower(f.val) {
 			case "yes", "true":
 				cmd.Sync = true
@@ -183,6 +185,11 @@ LOOP:
 		default:
 			return nil, fmt.Errorf("unknown field %q in command block.", f.key)
 		}
+	}
+
+	if !syncSet && strings.HasPrefix(cmd.Command, ":") {
+		cmd.Sync = true
+		cmd.Command = strings.TrimPrefix(cmd.Command, ":")
 	}
 	return cmd, err
 }
