@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/insomnimus/inscript/ast"
-	"github.com/insomnimus/inscript/lexer"
-	"github.com/insomnimus/inscript/parser"
-	"github.com/insomnimus/inscript/runtime"
+	"github.com/insomnimus/github.com/insomnimus/inscript/ast"
+	"github.com/insomnimus/github.com/insomnimus/inscript/lexer"
+	"github.com/insomnimus/github.com/insomnimus/inscript/parser"
+	"github.com/insomnimus/github.com/insomnimus/inscript/runtime"
 	"io"
 	"log"
 	"os"

@@ -12,7 +12,7 @@ import (
 )
 
 func showAbout() {
-	log.Println("github.com/insomnimus/github.com/insomnimus/inscript interpreter\nuse inscript --help for the usage")
+	log.Println("github.com/insomnimus/inscript interpreter\nuse inscript --help for the usage")
 	os.Exit(0)
 }
 
