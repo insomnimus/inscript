@@ -1,7 +1,7 @@
 install:
-	@echo building and installing github.com/insomnimus/inscript
+	@echo building and installing inscript
 	go install
-	@echo "installed github.com/insomnimus/inscript under ${GOBIN} (\$$GOBIN) or ${GOPATH}/bin (\$$GOPATH/bin)"
+	@echo "installed inscript under ${GOBIN} (\$$GOBIN) or ${GOPATH}/bin (\$$GOPATH/bin)"
 
 all: test install
 
