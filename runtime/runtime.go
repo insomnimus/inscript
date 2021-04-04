@@ -10,12 +10,12 @@ import (
 )
 
 type Process struct {
-	Cmd        *exec.Cmd
-	Command    *ast.Command
-	ShouldWait bool
-	Kill       func()
-	Run        func() error
-	killed     bool
+	Cmd     *exec.Cmd
+	Command *ast.Command
+	Async   bool
+	Kill    func()
+	Run     func() error
+	killed  bool
 }
 
 func CreateProcess(cmd *ast.Command) (*Process, error) {
@@ -77,23 +77,26 @@ func CreateProcess(cmd *ast.Command) (*Process, error) {
 			}
 		}
 	}
-	shouldWait := !cmd.Sync
-	if cmd.Times > 0 {
-		shouldWait = false
+	async := !cmd.Sync
+	if cmd.Every > 0 && cmd.Times == 0 {
+		async = true
 	}
 
 	p := &Process{
-		Cmd:        command,
-		Command:    cmd,
-		ShouldWait: shouldWait,
+		Cmd:     command,
+		Command: cmd,
+		Async:   async,
 	}
 
 	p.Kill = func() {
+		if p.Cmd == nil || p.Cmd.Process == nil {
+			p.killed = true
+		}
 		if p.killed {
 			return
 		}
 		p.killed = true
-		if !shouldWait {
+		if p.Async {
 			// process.Signal(sigint) does nothing on windows so we kill instead
 			if os.PathSeparator == '\\' {
 				p.Cmd.Process.Kill()
@@ -112,12 +115,6 @@ func CreateProcess(cmd *ast.Command) (*Process, error) {
 		}
 	}
 
-	// monotonic
-	if cmd.Every > 0 {
-		p.monotonicRunFunc()
-		return p, nil
-	}
-
 	// monotonic and certain amount of iterations
 	if cmd.Every > 0 && cmd.Times > 0 {
 		p.monotonicTimesRunFunc()
@@ -127,6 +124,12 @@ func CreateProcess(cmd *ast.Command) (*Process, error) {
 	// certain amount of times
 	if cmd.Times > 0 {
 		p.timesRunFunc()
+		return p, nil
+	}
+	// monotonic
+	if cmd.Every > 0 {
+		p.Async = true
+		p.monotonicRunFunc()
 		return p, nil
 	}
 
@@ -183,7 +186,7 @@ func (p *Process) timesRunFunc() {
 	}
 }
 
-func (p *Process) monotonicRunFunc() {
+func (p *Process) _monotonicRunFunc() {
 	p.Run = func() (err error) {
 		defer p.Kill()
 		ticker := time.NewTicker(p.Command.Every)
@@ -211,7 +214,7 @@ func (p *Process) monotonicRunFunc() {
 	}
 }
 
-func (p *Process) monotonicTimesRunFunc() {
+func (p *Process) _monotonicTimesRunFunc() {
 	p.Run = func() (err error) {
 		defer p.Kill()
 		ticker := time.NewTicker(p.Command.Every)
@@ -236,5 +239,36 @@ func (p *Process) monotonicTimesRunFunc() {
 			}
 		}()
 		return
+	}
+}
+
+func (p *Process) monotonicTimesRunFunc() {
+	p.Run = func() (err error) {
+		defer p.Kill()
+		for i := 0; i < p.Command.Times; i++ {
+			err = p.Cmd.Run()
+			if err != nil {
+				return
+			}
+			p.Refresh()
+			if i+1 < p.Command.Times {
+				time.Sleep(p.Command.Every)
+			}
+		}
+		return
+	}
+}
+
+func (p *Process) monotonicRunFunc() {
+	p.Run = func() error {
+		defer p.Kill()
+		for {
+			err := p.Cmd.Run()
+			if err != nil {
+				return err
+			}
+			p.Refresh()
+			time.Sleep(p.Command.Every)
+		}
 	}
 }

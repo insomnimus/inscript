@@ -65,46 +65,57 @@ func main() {
 		commands = append(commands, cmd)
 	}
 
-	shouldWait := false
-	var processes []*runtime.Process
-	for _, cmd := range commands {
-		procs, err := runtime.CreateProcess(cmd)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if procs.ShouldWait {
-			shouldWait = true
-		}
-		processes = append(processes, procs)
-	}
+	//shouldWait := false
+
 	if fileName != "" {
 		log.Printf("starting %s\n", fileName)
 	}
-	if !shouldWait {
-		for _, pr := range processes {
-			err = pr.Run()
+	/*
+		if !shouldWait {
+			for _, pr := range processes {
+				err = pr.Run()
+				if err != nil {
+					log.Fatal(err)
+				}
+			}
+			if fileName != "" {
+				log.Printf("done %s\n", fileName)
+			}
+			return
+		}
+	*/
+	done := make(chan struct{}, len(commands))
+	for _, cmd := range commands {
+		pr, err := runtime.CreateProcess(cmd)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if pr.Async {
+			//shouldWait = true
+			go func() {
+				err := pr.Run()
+				if err != nil {
+					log.Fatal(err)
+				}
+				done <- struct{}{}
+			}()
+		} else {
+			err := pr.Run()
 			if err != nil {
 				log.Fatal(err)
 			}
+			done <- struct{}{}
 		}
-		if fileName != "" {
-			log.Printf("done %s\n", fileName)
-		}
-		return
 	}
-
 	sig := make(chan os.Signal, 2)
 	signal.Notify(sig, os.Interrupt)
-	for _, pr := range processes {
-		go func() {
-			err := pr.Run()
-			if err != nil {
-				log.Println(fileName, err)
-			}
-		}()
-		defer pr.Kill()
+	for i := 0; i < len(commands); i++ {
+		select {
+		case <-sig:
+			return
+		case <-done:
+		}
 	}
-	<-sig
 	if fileName != "" {
 		log.Printf("done %s\n", fileName)
 	}

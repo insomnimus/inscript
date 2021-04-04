@@ -129,6 +129,12 @@ func (p *Parser) parseCommand() (*ast.Command, error) {
 LOOP:
 	for {
 		switch p.token.Type {
+		case token.Comment:
+			err = p.skipComment()
+			if err != nil {
+				return nil, err
+			}
+			continue LOOP
 		case token.RBrace:
 			break LOOP
 		case token.String:
