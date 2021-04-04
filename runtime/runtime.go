@@ -132,13 +132,13 @@ func CreateProcess(cmd *ast.Command) (*Process, error) {
 			}
 		}
 		if stdin != nil {
-			stdin.File.Close()
+			stdin.Done()
 		}
 		if stdout != nil {
-			stdout.File.Close()
+			stdout.Done()
 		}
 		if stderr != nil {
-			stderr.File.Close()
+			stderr.Done()
 		}
 	}
 
