@@ -277,9 +277,9 @@ func (p *Process) monotonicTimesRunFunc() {
 			if err != nil {
 				return
 			}
-			p.Refresh()
 			if i+1 < p.Command.Times {
 				time.Sleep(p.Command.Every)
+				p.Refresh()
 			}
 		}
 		return

@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"time"
 )
 
 func showAbout() {
@@ -90,6 +91,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		time.Sleep(5 * time.Millisecond)
 		if pr.Async {
 			//shouldWait = true
 			go func() {
@@ -99,14 +101,17 @@ func main() {
 				}
 				done <- struct{}{}
 			}()
-		} else {
-			err := pr.Run()
-			if err != nil {
-				log.Fatal(err)
-			}
-			done <- struct{}{}
+			continue
 		}
+		time.Sleep(50 * time.Millisecond)
+		err = pr.Run()
+		if err != nil {
+			log.Fatal(err)
+		}
+		done <- struct{}{}
+
 	}
+
 	sig := make(chan os.Signal, 2)
 	signal.Notify(sig, os.Interrupt)
 	for i := 0; i < len(commands); i++ {
