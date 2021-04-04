@@ -23,7 +23,7 @@ func CreateProcess(cmd *ast.Command) (*Process, error) {
 	if cmd.Dir != "" {
 		command.Dir = cmd.Dir
 	}
-	var stdin, stdout, stderr *os.File
+	var stdin, stdout, stderr *File
 	var err error
 	if cmd.Stderr != "" {
 		switch {
@@ -32,17 +32,26 @@ func CreateProcess(cmd *ast.Command) (*Process, error) {
 		case cmd.Stderr == "!stdout":
 			command.Stderr = os.Stdout
 		default:
-			if _, e := os.Stat(cmd.Stderr); os.IsNotExist(e) {
-				stderr, err = os.Create(cmd.Stderr)
+			if file, ok := LookupFile(cmd.Dir + cmd.Stderr); ok {
+				command.Stderr = file.File
+				stderr = file
+				file.Add()
+				break
+			}
+			var file *os.File
+			if _, e := os.Stat(cmd.Dir + cmd.Stderr); os.IsNotExist(e) {
+				file, err = os.Create(cmd.Dir + cmd.Stderr)
 			} else {
-				stderr, err = os.OpenFile(cmd.Stderr, os.O_WRONLY, 0764)
+				file, err = os.OpenFile(cmd.Dir+cmd.Stderr, os.O_WRONLY, 0764)
 			}
 			if err != nil {
 				return nil, err
 			}
-			command.Stderr = stderr
+			command.Stderr = file
+			stderr = RegisterFile(cmd.Dir+cmd.Stderr, file)
 		}
 	}
+
 	if cmd.Stdout != "" {
 		switch {
 		case cmd.Stdout == "!stdout":
@@ -50,33 +59,51 @@ func CreateProcess(cmd *ast.Command) (*Process, error) {
 		case cmd.Stdout == "!stderr":
 			command.Stdout = os.Stderr
 		case cmd.Stdout == cmd.Stderr && stderr != nil:
-			command.Stdout = stderr
+			command.Stdout = stderr.File
 		default:
-			if _, e := os.Stat(cmd.Stdout); os.IsNotExist(e) {
-				stdout, err = os.Create(cmd.Stdout)
+			if file, ok := LookupFile(cmd.Dir + cmd.Stdout); ok {
+				file.Add()
+				command.Stdout = file.File
+				stdout = file
+				break
+			}
+			var file *os.File
+			if _, e := os.Stat(cmd.Dir + cmd.Stdout); os.IsNotExist(e) {
+				file, err = os.Create(cmd.Dir + cmd.Stdout)
 			} else {
-				stdout, err = os.OpenFile(cmd.Stdout, os.O_WRONLY, 0764)
+				file, err = os.OpenFile(cmd.Dir+cmd.Stdout, os.O_WRONLY, 0764)
 			}
 			if err != nil {
 				return nil, err
 			}
-			command.Stdout = stdout
+			command.Stdout = file
+			stdout = RegisterFile(cmd.Dir+cmd.Stdout, file)
 		}
 	}
+
 	if cmd.Stdin != "" {
 		switch {
 		case cmd.Stdin == "!stdin":
 			command.Stdin = os.Stdin
 		case cmd.Stdin != cmd.Stdout && cmd.Stdin != cmd.Stderr:
-			if _, e := os.Stat(cmd.Stdin); !os.IsNotExist(e) {
-				stdin, err = os.Open(cmd.Stdin)
+			if file, ok := LookupFile(cmd.Dir + cmd.Stdin); ok {
+				command.Stdin = file.File
+				stdin = file
+				file.Add()
+				break
+			}
+			var file *os.File
+			if _, e := os.Stat(cmd.Dir + cmd.Stdin); !os.IsNotExist(e) {
+				file, err = os.Open(cmd.Dir + cmd.Stdin)
 				if err != nil {
 					return nil, err
 				}
-				command.Stdin = stdin
+				command.Stdin = file
+				stdin = RegisterFile(cmd.Dir+cmd.Stdin, file)
 			}
 		}
 	}
+
 	async := !cmd.Sync
 	if cmd.Every > 0 && cmd.Times == 0 {
 		async = true
@@ -105,13 +132,13 @@ func CreateProcess(cmd *ast.Command) (*Process, error) {
 			}
 		}
 		if stdin != nil {
-			stdin.Close()
+			stdin.File.Close()
 		}
 		if stdout != nil {
-			stdout.Close()
+			stdout.File.Close()
 		}
 		if stderr != nil {
-			stderr.Close()
+			stderr.File.Close()
 		}
 	}
 

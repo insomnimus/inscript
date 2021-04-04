@@ -1,0 +1,41 @@
+package runtime
+
+import (
+	"os"
+	"sync"
+)
+
+var fileMap = make(map[string]*File)
+
+type File struct {
+	File    *os.File
+	mux     sync.Mutex
+	ActiveN int
+}
+
+func (f *File) Add() {
+	f.ActiveN++
+}
+
+func (f *File) Done() {
+	f.mux.Lock()
+	defer f.mux.Unlock()
+	f.ActiveN--
+	if f.ActiveN <= 0 {
+		f.File.Close()
+	}
+}
+
+func LookupFile(key string) (*File, bool) {
+	f, ok := fileMap[key]
+	return f, ok && f != nil
+}
+
+func RegisterFile(key string, f *os.File) *File {
+	file := &File{
+		File:    f,
+		ActiveN: 1,
+	}
+	fileMap[key] = file
+	return file
+}
