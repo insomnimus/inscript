@@ -25,8 +25,8 @@ func parseInterval(s string) (time.Duration, error) {
 	if err != nil {
 		return 0, err
 	}
-	if d < time.Minute {
-		return 0, fmt.Errorf("every:= %s: time interval can't be shorter than a minute.", s)
+	if d < 30*time.Second {
+		return 0, fmt.Errorf("every:= %s: time interval can't be shorter than 30 seconds", s)
 	}
 	return d, nil
 }
@@ -56,7 +56,7 @@ func (p *Parser) expect(t token.TokenType) error {
 		return err
 	}
 	if p.token.Type != t {
-		return fmt.Errorf("line %d: unexpected token %s, expected %s instead.", p.token.Line, p.token.Type, t)
+		return fmt.Errorf("line %d: unexpected token %s, expected %s instead", p.token.Line, p.token.Type, t)
 	}
 	return nil
 }

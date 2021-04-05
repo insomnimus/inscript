@@ -45,7 +45,7 @@ func (p *Parser) Next() (*ast.Command, error) {
 		}
 		return p.Next()
 	default:
-		return nil, fmt.Errorf("line %d: unexpected token of type %s.", p.token.Line, p.token.Type)
+		return nil, fmt.Errorf("line %d: unexpected token of type %s", p.token.Line, p.token.Type)
 	}
 	if err != nil {
 		return nil, err
@@ -67,9 +67,20 @@ func (p *Parser) parseInlineCommand() (*ast.Command, error) {
 	cmd := &ast.Command{
 		Command: p.token.Literal,
 	}
-	if strings.HasPrefix(cmd.Command, ":") {
-		cmd.Sync = true
-		cmd.Command = strings.TrimPrefix(cmd.Command, ":")
+FOR:
+	for i, c := range cmd.Command {
+		switch c {
+		case ':':
+			cmd.Sync = true
+		case '!':
+			cmd.Stderr = "!stderr"
+			cmd.Stdout = "!stdout"
+		case '+':
+			cmd.Stdin = "!stdin"
+		default:
+			cmd.Command = cmd.Command[i:]
+			break FOR
+		}
 	}
 	err := p.read()
 	if err != nil {
@@ -110,7 +121,7 @@ func (p *Parser) parseCommand() (*ast.Command, error) {
 		}
 	}
 	if p.token.Type != token.LBrace {
-		return nil, fmt.Errorf("line %d: expected left brace, got %s instead.", p.token.Line, p.token.Type)
+		return nil, fmt.Errorf("line %d: expected left brace, got %s instead", p.token.Line, p.token.Type)
 	}
 	err = p.read()
 	if err != nil {
@@ -148,7 +159,7 @@ LOOP:
 		case token.EOF:
 			return nil, fmt.Errorf("unexpected end of file in command block")
 		default:
-			return nil, fmt.Errorf("line %d: unexpected token of type %s in command block.", p.token.Line, p.token.Type)
+			return nil, fmt.Errorf("line %d: unexpected token of type %s in command block", p.token.Line, p.token.Type)
 		}
 		err = p.read()
 		if err != nil {
@@ -179,7 +190,7 @@ LOOP:
 				cmd.Sync = true
 			case "false", "no", "":
 			default:
-				return nil, fmt.Errorf("invalid boolean value for sync field %q.", f.val)
+				return nil, fmt.Errorf("invalid boolean value for sync field %q", f.val)
 			}
 		case "every":
 			cmd.Every, err = parseInterval(f.val)
@@ -189,14 +200,33 @@ LOOP:
 		case "dir", "workingdirectory":
 			cmd.Dir = f.val
 		default:
-			return nil, fmt.Errorf("unknown field %q in command block.", f.key)
+			return nil, fmt.Errorf("unknown field %q in command block", f.key)
+		}
+	}
+FOR:
+	for i, c := range cmd.Command {
+		switch c {
+		case ':':
+			if !syncSet {
+				cmd.Sync = true
+			}
+		case '!':
+			if cmd.Stderr == "" {
+				cmd.Stderr = "!stderr"
+			}
+			if cmd.Stdout == "" {
+				cmd.Stdout = "!stdout"
+			}
+		case '+':
+			if cmd.Stdin == "" {
+				cmd.Stdin = "!stdin"
+			}
+		default:
+			cmd.Command = cmd.Command[i:]
+			break FOR
 		}
 	}
 
-	if !syncSet && strings.HasPrefix(cmd.Command, ":") {
-		cmd.Sync = true
-		cmd.Command = strings.TrimPrefix(cmd.Command, ":")
-	}
 	return cmd, err
 }
 
