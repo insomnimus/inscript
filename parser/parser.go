@@ -9,8 +9,11 @@ import (
 )
 
 type Parser struct {
-	l           *lexer.Lexer
-	token, peek token.Token
+	l                 *lexer.Lexer
+	prev, token, peek token.Token
+
+	// parsed directives
+	stdin, stdout, stderr, dir, sync string
 }
 
 func New(l *lexer.Lexer) (*Parser, error) {
@@ -67,15 +70,20 @@ func (p *Parser) parseInlineCommand() (*ast.Command, error) {
 	cmd := &ast.Command{
 		Command: p.token.Literal,
 	}
+	setFields := make(map[string]struct{})
 FOR:
 	for i, c := range cmd.Command {
 		switch c {
 		case ':':
+			setFields["sync"] = struct{}{}
 			cmd.Sync = true
 		case '!':
+			setFields["stderr"] = struct{}{}
+			setFields["stdout"] = struct{}{}
 			cmd.Stderr = "!stderr"
 			cmd.Stdout = "!stdout"
 		case '+':
+			setFields["stdin"] = struct{}{}
 			cmd.Stdin = "!stdin"
 		default:
 			cmd.Command = cmd.Command[i:]
@@ -93,6 +101,8 @@ FOR:
 			return nil, err
 		}
 	}
+	// apply directives, if any
+	p.applyDirectives(cmd, setFields)
 	return cmd, err
 }
 
@@ -166,25 +176,30 @@ LOOP:
 			return nil, err
 		}
 	}
-	syncSet := false
+	setFields := make(map[string]struct{})
 
 	for _, f := range fields {
 		switch strings.ToLower(f.key) {
 		case "name":
+			setFields["name"] = struct{}{}
 			cmd.Name = f.val
 		case "stdin":
+			setFields["stdin"] = struct{}{}
 			cmd.Stdin = f.val
 		case "stdout":
+			setFields["stdout"] = struct{}{}
 			cmd.Stdout = f.val
 		case "stderr":
+			setFields["stderr"] = struct{}{}
 			cmd.Stderr = f.val
 		case "times":
+			setFields["times"] = struct{}{}
 			cmd.Times, err = parseTimes(f.val)
 			if err != nil {
 				return nil, err
 			}
 		case "sync":
-			syncSet = true
+			setFields["sync"] = struct{}{}
 			switch strings.ToLower(f.val) {
 			case "yes", "true":
 				cmd.Sync = true
@@ -193,11 +208,13 @@ LOOP:
 				return nil, fmt.Errorf("invalid boolean value for sync field %q", f.val)
 			}
 		case "every":
+			setFields["every"] = struct{}{}
 			cmd.Every, err = parseInterval(f.val)
 			if err != nil {
 				return nil, err
 			}
 		case "dir", "workingdirectory":
+			setFields["dir"] = struct{}{}
 			cmd.Dir = f.val
 		default:
 			return nil, fmt.Errorf("unknown field %q in command block", f.key)
@@ -207,18 +224,22 @@ FOR:
 	for i, c := range cmd.Command {
 		switch c {
 		case ':':
-			if !syncSet {
+			if _, ok := setFields["sync"]; !ok {
+				setFields["sync"] = struct{}{}
 				cmd.Sync = true
 			}
 		case '!':
-			if cmd.Stderr == "" {
+			if _, ok := setFields["stderr"]; !ok {
+				setFields["stderr"] = struct{}{}
 				cmd.Stderr = "!stderr"
 			}
-			if cmd.Stdout == "" {
+			if _, ok := setFields["stdout"]; !ok {
+				setFields["stdout"] = struct{}{}
 				cmd.Stdout = "!stdout"
 			}
 		case '+':
-			if cmd.Stdin == "" {
+			if _, ok := setFields["stdin"]; !ok {
+				setFields["stdin"] = struct{}{}
 				cmd.Stdin = "!stdin"
 			}
 		default:
@@ -226,6 +247,7 @@ FOR:
 			break FOR
 		}
 	}
+	p.applyDirectives(cmd, setFields)
 
 	return cmd, err
 }
@@ -255,5 +277,44 @@ func (p *Parser) parseField() (f field, err error) {
 		}
 	}
 	f.val = strings.Join(fields, " ")
+	return
+}
+
+func (p *Parser) checkForDirective(tokens ...token.Token) (err error) {
+	if len(tokens) == 2 {
+		tokens = append(tokens, token.Token{Type: token.String})
+	} else if len(tokens) != 3 {
+		return
+	}
+
+	if tokens[0].Type != token.String {
+		return
+	}
+	if tokens[1].Type != token.Assign {
+		return
+	}
+	if tokens[2].Type != token.String {
+		return
+	}
+	val := tokens[2].Literal
+	switch strings.ToLower(tokens[0].Literal) {
+	case "dir", "workingdirectory":
+		p.dir = val
+	case "stdin":
+		p.stdin = val
+	case "stderr":
+		p.stderr = val
+	case "stdout":
+		p.stdout = val
+	case "sync":
+		switch strings.ToLower(val) {
+		case "true", "yes":
+			p.sync = "true"
+		case "false", "no", "":
+			p.sync = "false"
+		default:
+			return fmt.Errorf("line %d: invalid value %q for directive 'sync', only boolean values are accepted", tokens[0].Line, val)
+		}
+	}
 	return
 }

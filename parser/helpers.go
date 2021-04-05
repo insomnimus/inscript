@@ -2,10 +2,13 @@ package parser
 
 import (
 	"fmt"
+	"github.com/insomnimus/inscript/ast"
 	"github.com/insomnimus/inscript/token"
 	"strconv"
 	"time"
 )
+
+var zeroToken = token.Token{}
 
 type EOFError struct{}
 
@@ -62,6 +65,7 @@ func (p *Parser) expect(t token.TokenType) error {
 }
 
 func (p *Parser) read() error {
+	p.prev = p.token
 	p.token = p.peek
 	var err error
 	p.peek, err = p.l.Next()
@@ -84,15 +88,54 @@ func (p *Parser) skipComment() error {
 	if p.token.Type != token.Comment {
 		pnc("internal error: line %d: p.skipComment called on token of type %s, expected %s instead.", p.token.Line, p.token.Type, token.Comment)
 	}
+	startOfLine := false
+	if p.prev.Type == token.LF || p.prev == zeroToken {
+		startOfLine = true
+	}
 	err := p.read()
 	if err != nil {
 		return err
 	}
+	// check for directives
+	var tokens []token.Token
 	for p.token.Type != token.LF && p.token.Type != token.EOF {
+		tokens = append(tokens, p.token)
 		err = p.read()
 		if err != nil {
 			return err
 		}
 	}
+	if startOfLine {
+		return p.checkForDirective(tokens...)
+	}
 	return nil
+}
+
+func (p *Parser) applyDirectives(cmd *ast.Command, set map[string]struct{}) {
+	if cmd == nil {
+		return
+	}
+	if set == nil {
+		set = make(map[string]struct{})
+	}
+	if _, ok := set["dir"]; !ok && p.dir != "" {
+		cmd.Dir = p.dir
+	}
+	if _, ok := set["sync"]; !ok && p.sync != "" {
+		switch p.sync {
+		case "true", "yes":
+			cmd.Sync = true
+		default:
+			cmd.Sync = false
+		}
+	}
+	if _, ok := set["stdin"]; !ok && p.stdin != "" {
+		cmd.Stdin = p.stdin
+	}
+	if _, ok := set["stdout"]; !ok && p.stdout != "" {
+		cmd.Stdout = p.stdout
+	}
+	if _, ok := set["stderr"]; !ok && p.stderr != "" {
+		cmd.Stderr = p.stderr
+	}
 }
