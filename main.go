@@ -9,7 +9,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"time"
 )
 
 func showAbout() {
@@ -71,27 +70,14 @@ func main() {
 	if fileName != "" {
 		log.Printf("starting %s\n", fileName)
 	}
-	/*
-		if !shouldWait {
-			for _, pr := range processes {
-				err = pr.Run()
-				if err != nil {
-					log.Fatal(err)
-				}
-			}
-			if fileName != "" {
-				log.Printf("done %s\n", fileName)
-			}
-			return
-		}
-	*/
+
 	done := make(chan struct{}, len(commands))
+
 	for _, cmd := range commands {
 		pr, err := runtime.CreateProcess(cmd)
 		if err != nil {
 			log.Fatal(err)
 		}
-		time.Sleep(5 * time.Millisecond)
 		if pr.Async {
 			//shouldWait = true
 			go func() {
@@ -103,7 +89,6 @@ func main() {
 			}()
 			continue
 		}
-		time.Sleep(50 * time.Millisecond)
 		err = pr.Run()
 		if err != nil {
 			log.Fatal(err)
