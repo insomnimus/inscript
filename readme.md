@@ -44,7 +44,7 @@ Meanwhile, though, here's a totally realistic inscript code (placeholder for mor
 
 # lets read from echoed.txt
 @ tail -1 echoed.txt {
-sync:= false # no need to specify this since by default commands are asynchronous
+	sync:= false # no need to specify this since by default commands are asynchronous
 	stdout:= !stdout # !stdout is the stdout for the whole script
 	times:= 3 # run this 3 times
 	every:= "1m" # run it every minute
@@ -59,7 +59,7 @@ sync:= false # no need to specify this since by default commands are asynchronou
 
 # change the content of echoed.txt every minute by printing the hour
 @ date +"%T" {
-sync:= true # we don't need async here
+	sync:= true # we don't need async here
 	stdout:= echoed.txt
 	every:= 1m
 	times:= 2
