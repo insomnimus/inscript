@@ -380,7 +380,7 @@ func (l *Lexer) readExpression() (string, error) {
 	var args []string
 	for t, err := lx.Next(); t.Type != token.EOF; t, err = lx.Next() {
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("line %d: evaluation error: %w", l.line, err)
 		}
 		args = append(args, t.Literal)
 	}
@@ -390,7 +390,7 @@ func (l *Lexer) readExpression() (string, error) {
 	cmd := exec.Command(args[0], args[1:]...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("line %d: evaluation error: %w", l.line, err)
 	}
 	return string(output), nil
 }
