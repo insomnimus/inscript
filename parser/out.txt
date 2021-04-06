@@ -1,0 +1,54 @@
+--- FAIL: TestNext (0.00s)
+    parser_test.go:59: command mismatch:
+        expected Command{
+        	Command: "go",
+        	Args: [run main.go],
+        	Sync: true,
+        }
+        got Command{
+        	Command: "42",
+        	Sync: false,
+        }
+    parser_test.go:59: command mismatch:
+        expected Command{
+        	Command: "cat",
+        	Args: [go.mod],
+        	Sync: true,
+        	Stdout: "cat.out",
+        	Every: 3600000000000,
+        }
+        got Command{
+        	Command: "go",
+        	Args: [run main.go],
+        	Sync: true,
+        }
+    parser_test.go:59: command mismatch:
+        expected Command{
+        	Command: "bash",
+        	Args: [-c echo hello],
+        	Sync: false,
+        }
+        got Command{
+        	Command: "cat",
+        	Args: [go.mod],
+        	Sync: true,
+        	Stdout: "cat.out",
+        	Every: 3600000000000,
+        }
+    parser_test.go:59: command mismatch:
+        expected Command{
+        	Command: "echo",
+        	Args: [42],
+        	Sync: true,
+        	Stdin: "!stdin",
+        	Stdout: "!stdout",
+        	Stderr: "!stderr",
+        }
+        got Command{
+        	Command: "bash",
+        	Args: [-c echo hello],
+        	Sync: false,
+        }
+FAIL
+exit status 1
+FAIL	github.com/insomnimus/inscript/parser	0.049s

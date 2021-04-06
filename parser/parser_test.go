@@ -10,6 +10,7 @@ import (
 func TestNext(t *testing.T) {
 	input := `#!/bin/github.com/insomnimus/inscript
 #this is a test program
+x:=42
 :go run main.go
 
 @ cat go.mod {
@@ -18,7 +19,19 @@ func TestNext(t *testing.T) {
 	every:= 1h
 }
 
-bash -c 'echo hello'`
+bash -c 'echo hello'
+
+!:+echo $x
+
+# test directive
+#<sync=true>
+
+ls
+sleep
+mkdir
+#<sync=>
+sed
+`
 	tests := []*ast.Command{
 		{
 			Command: "go",
@@ -33,6 +46,24 @@ bash -c 'echo hello'`
 		}, {
 			Command: "bash",
 			Args:    []string{"-c", "echo hello"},
+		}, {
+			Command: "echo",
+			Args:    []string{"42"},
+			Stdout:  "!stdout",
+			Stdin:   "!stdin",
+			Stderr:  "!stderr",
+			Sync:    true,
+		}, {
+			Command: "ls",
+			Sync:    true,
+		}, {
+			Command: "sleep",
+			Sync:    true,
+		}, {
+			Command: "mkdir",
+			Sync:    true,
+		}, {
+			Command: "sed",
 		},
 	}
 	l := lexer.New(input)

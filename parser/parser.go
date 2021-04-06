@@ -5,6 +5,7 @@ import (
 	"github.com/insomnimus/inscript/ast"
 	"github.com/insomnimus/inscript/lexer"
 	"github.com/insomnimus/inscript/token"
+	"os"
 	"strings"
 )
 
@@ -38,6 +39,13 @@ func (p *Parser) Next() (*ast.Command, error) {
 	case token.EOF:
 		return nil, &ErrEOF
 	case token.String:
+		if p.peek.Type == token.Assign {
+			err = p.parseVariable()
+			if err != nil {
+				return nil, err
+			}
+			return p.Next()
+		}
 		cmd, err = p.parseInlineCommand()
 	case token.At:
 		cmd, err = p.parseCommand()
@@ -280,41 +288,72 @@ func (p *Parser) parseField() (f field, err error) {
 	return
 }
 
-func (p *Parser) checkForDirective(tokens ...token.Token) (err error) {
-	if len(tokens) == 2 {
-		tokens = append(tokens, token.Token{Type: token.String})
-	} else if len(tokens) != 3 {
+func (p *Parser) checkForDirective(t token.Token) (err error) {
+	if !strings.HasPrefix(t.Literal, "<") ||
+		!strings.HasSuffix(t.Literal, ">") ||
+		!strings.Contains(t.Literal, "=") {
 		return
 	}
-
-	if tokens[0].Type != token.String {
-		return
-	}
-	if tokens[1].Type != token.Assign {
-		return
-	}
-	if tokens[2].Type != token.String {
-		return
-	}
-	val := tokens[2].Literal
-	switch strings.ToLower(tokens[0].Literal) {
+	comment := strings.TrimPrefix(t.Literal, "<")
+	comment = strings.TrimSuffix(comment, ">")
+	split := strings.SplitN(comment, "=", 2)
+	key := split[0]
+	val := split[1]
+	switch strings.ToLower(key) {
 	case "dir", "workingdirectory":
 		p.dir = val
-	case "stdin":
-		p.stdin = val
-	case "stderr":
-		p.stderr = val
-	case "stdout":
-		p.stdout = val
 	case "sync":
 		switch strings.ToLower(val) {
 		case "true", "yes":
 			p.sync = "true"
-		case "false", "no", "":
+		case "":
+			p.sync = ""
+		case "false", "no":
 			p.sync = "false"
 		default:
-			return fmt.Errorf("line %d: invalid value %q for directive 'sync', only boolean values are accepted", tokens[0].Line, val)
+			return fmt.Errorf("line %d: invalid value %q for 'sync' directive, values must be true or false", t.Line, val)
 		}
+	case "stdin":
+		p.stdin = val
+	case "stdout":
+		p.stdout = val
+	case "stderr":
+		p.stderr = val
+	default:
+		return fmt.Errorf("line %d: unrecognized directive: %s", t.Line, t.Literal)
 	}
 	return
+}
+
+// only reads related tokens
+func (p *Parser) parseVariable() error {
+	// sanity check
+	if p.token.Type != token.String {
+		pnc("internal error: line %d: p.parseVariable called on a %s token, expected %s instead", p.token.Line, p.token.Type, token.String)
+	}
+	if p.peek.Type != token.Assign {
+		pnc("internal error: line %d: p.parseVariable called on peek %s token, expected %s instead", p.peek.Line, p.peek.Type, token.Assign)
+	}
+	key := p.token.Literal
+	err := p.read()
+	if err != nil {
+		return err
+	}
+	var val string
+	switch p.peek.Type {
+	case token.EOF, token.LF:
+	case token.String:
+		err = p.read()
+		if err != nil {
+			return err
+		}
+		val = p.token.Literal
+		err = p.read()
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("line %d: can't assign %s to a variable, the value has to be a string", p.token.Line, p.token.Literal)
+	}
+	return os.Setenv(key, val)
 }

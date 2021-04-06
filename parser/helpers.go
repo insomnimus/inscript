@@ -92,21 +92,15 @@ func (p *Parser) skipComment() error {
 	if p.prev.Type == token.LF || p.prev == zeroToken {
 		startOfLine = true
 	}
+	t := p.token
 	err := p.read()
 	if err != nil {
 		return err
 	}
 	// check for directives
-	var tokens []token.Token
-	for p.token.Type != token.LF && p.token.Type != token.EOF {
-		tokens = append(tokens, p.token)
-		err = p.read()
-		if err != nil {
-			return err
-		}
-	}
+
 	if startOfLine {
-		return p.checkForDirective(tokens...)
+		return p.checkForDirective(t)
 	}
 	return nil
 }
