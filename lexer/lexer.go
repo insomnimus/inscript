@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/insomnimus/inscript/token"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"unicode"
@@ -31,6 +32,17 @@ func (l *Lexer) Next() (token.Token, error) {
 	var t token.Token
 	l.skipSpace()
 	switch l.ch {
+	case '$':
+		if l.peek() == '(' {
+			s, err := l.readExpression()
+			if err != nil {
+				return t, err
+			}
+			t = l.newToken(token.String, s, ln)
+		} else {
+			s := l.readStringBare()
+			return l.newToken(token.String, s, ln), nil
+		}
 	case '\n':
 		t = l.newToken(token.LF, "\n")
 	case 0:
@@ -84,6 +96,16 @@ func (l *Lexer) readString() (string, error) {
 LOOP:
 	for {
 		switch l.ch {
+		case '$':
+			if l.peek() == '(' {
+				s, err := l.readExpression()
+				if err != nil {
+					return "", err
+				}
+				buff.WriteString(s)
+			} else {
+				buff.WriteRune(l.ch)
+			}
 		case 0:
 			return "", l.err(startLn, "quoted string not terminated with '\"'")
 		case '"':
@@ -337,4 +359,38 @@ LOOP:
 		l.read()
 	}
 	return os.ExpandEnv(buff.String())
+}
+
+func (l *Lexer) readExpression() (string, error) {
+	// sanity check
+	if l.ch != '$' {
+		panic(fmt.Sprintf("internal error: line %d: l.readExpression called on %q, expected '$' instead", l.line, l.ch))
+	}
+	l.read()
+	if l.ch != '(' {
+		panic(fmt.Sprintf("internal error: line %d: l.readExpression called on '$%c', expected '$(' instead", l.line, l.ch))
+	}
+	l.read()
+	var buff strings.Builder
+	for l.ch != ')' && l.ch != 0 {
+		buff.WriteRune(l.ch)
+		l.read()
+	}
+	lx := New(buff.String())
+	var args []string
+	for t, err := lx.Next(); t.Type != token.EOF; t, err = lx.Next() {
+		if err != nil {
+			return "", err
+		}
+		args = append(args, t.Literal)
+	}
+	if len(args) == 0 {
+		return "", nil
+	}
+	cmd := exec.Command(args[0], args[1:]...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+	return string(output), nil
 }
