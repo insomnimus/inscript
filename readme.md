@@ -37,52 +37,52 @@ Meanwhile, though, here's a totally realistic inscript code (placeholder for mor
 ```
 #!/home/insomnia/go/bin/inscript
 
-# the ':' before the command is to indicate that it's not async (should wait for it to exit before moving to the next command)
-@ :echo hello {
-	stdout:= echoed.txt # write to echoed.txt
-}
-
-# lets read from echoed.txt
-@ tail -1 echoed.txt {
-	sync:= false # no need to specify this since by default commands are asynchronous
-	stdout:= !stdout # !stdout is the stdout for the whole script
-	times:= 3 # run this 3 times
-	every:= "1m" # run it every minute
-}
-
-# wait 30 seconds, we use ':' so it's synchronous
-:sleep 30
-
-@ :echo slept {
-	stdout:= !stdout
-}
-
-# change the content of echoed.txt every minute by printing the hour
-@ date +"%T" {
-	sync:= true # we don't need async here
+# the ':' prefix here is a shorthand for 'sync:=true'.
+# redirect the output to 'echoed.txt'.
+@ :echo "starting!" {
 	stdout:= echoed.txt
-	every:= 1m
-	times:= 2
 }
 
-#give tail command enough time to read the latest change
-:sleep 31
-
-# escape sequences are parsed if double quoted
-@ :echo "\tI'm done" {
-	stdout:= !stdout #shorthand for this coming soon
+# periodically read the last line from echoed.txt.
+@ tail -1 echoed.txt {
+	stdout:= !stdout # the whole scripts standard output
+	every:= 30s # do it every 30 seconds
+	times:= 4 # do this 4 times
 }
+
+# sleep a bit so there are no clashes.
+# the ':' is important because commands are asynchronous by default
+:sleep 15
+
+# now lets append to echoed.txt every 30 seconds
+@ date +"%H:%M:%S" {
+	stdout:= echoed.txt
+	every:= 30s
+	times:= 3
+	sync:= true # wait for the execution
+}
+
+# give tail enough time to complete its last iteration
+:sleep 16
+
+# the '!' prefix is the shorthand for
+#	stdout:= !stdout
+#	stderr:= !stderr
+#
+# the escape sequences are parsed, if double quoted.
+# note that we don't use 'echo -e', thats because inscript already parses double quoted strings.
+!:echo "\tI'm done!"
 ```
 
 output:
 
 ```
-$ ./example.ins
-starting ./example.ins
-hello
-slept
-"02:48:05"
-"02:49:05"
-        I'm done
-done ./example.ins
+$ ./time.ins
+starting ./time.ins
+starting!
+"03:16:31"
+"03:17:01"
+"03:17:31"
+        I'm done!
+done ./time.ins
 ```

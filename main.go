@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"time"
 )
 
 func showAbout() {
@@ -78,6 +79,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		time.Sleep(10 * time.Millisecond)
 		if pr.Async {
 			//shouldWait = true
 			go func() {

@@ -1,0 +1,37 @@
+#!/home/insomnia/go/bin/inscript
+
+# the ':' prefix here is a shorthand for 'sync:=true'.
+# redirect the output to 'echoed.txt'.
+@ :echo "starting!" {
+	stdout:= echoed.txt
+}
+
+# periodically read the last line from echoed.txt.
+@ tail -1 echoed.txt {
+	stdout:= !stdout # the whole scripts standard output
+	every:= 30s # do it every 30 seconds
+	times:= 4 # do this 4 times
+}
+
+# sleep a bit so there are no clashes.
+# the ':' is important because commands are asynchronous by default
+:sleep 15
+
+# now lets append to echoed.txt every 30 seconds
+@ date +"%H:%M:%S" {
+	stdout:= echoed.txt
+	every:= 30s
+	times:= 3
+	sync:= true # wait for the execution
+}
+
+# give tail enough time to complete its last iteration
+:sleep 16
+
+# the '!' prefix is the shorthand for
+#	stdout:= !stdout
+#	stderr:= !stderr
+#
+# the escape sequences are parsed, if double quoted.
+# note that we don't use 'echo -e', thats because inscript already parses double quoted strings.
+!:echo "\tI'm done!"

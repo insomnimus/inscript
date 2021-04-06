@@ -153,6 +153,7 @@ func CreateProcess(cmd *ast.Command) (*Process, error) {
 		p.timesRunFunc()
 		return p, nil
 	}
+
 	// monotonic
 	if cmd.Every > 0 {
 		p.Async = true
@@ -277,10 +278,11 @@ func (p *Process) monotonicTimesRunFunc() {
 			if err != nil {
 				return
 			}
-			if i+1 < p.Command.Times {
-				time.Sleep(p.Command.Every)
-				p.Refresh()
+			if i+1 == p.Command.Times {
+				break
 			}
+			time.Sleep(p.Command.Every)
+			p.Refresh()
 		}
 		return
 	}
