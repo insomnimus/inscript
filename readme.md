@@ -28,9 +28,13 @@ or you can clone it:
 
 after the steps above, inscript binary should be in $GOPATH/bin (or $GOBIN if you set it manually). Make sure it's under your $PATH.
 
+# Documentation
+
+[Here.](https://github.com/insomnimus/inscript/wiki)
+
 # TODO
 
-Examples and documentation coming soon.
+Examples and more documentation coming soon.
 
 Meanwhile, though, here's a totally realistic inscript code (placeholder for more thought out examples).
 
