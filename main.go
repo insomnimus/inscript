@@ -35,10 +35,10 @@ func main() {
 		log.Fatal(err)
 	}
 	for i, a := range os.Args[1:] {
-		os.Setenv(fmt.Sprintf("%d", i), a)
+		os.Setenv(fmt.Sprint(i), a)
 	}
-	os.Setenv("$#", fmt.Sprint(len(os.Args)-2))
-	os.Setenv("$@", strings.Join(os.Args[2:], " "))
+	os.Setenv("#", fmt.Sprint(len(os.Args)-2))
+	os.Setenv("@", strings.Join(os.Args[2:], " "))
 	l := lexer.New(string(data))
 	p, err := parser.New(l)
 	if err != nil {
