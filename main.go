@@ -1,11 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"github.com/insomnimus/inscript/ast"
 	"github.com/insomnimus/inscript/lexer"
 	"github.com/insomnimus/inscript/parser"
 	"github.com/insomnimus/inscript/runtime"
-	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -23,34 +23,18 @@ func showHelp() {
 }
 
 func main() {
-	var fileName string
 	log.SetFlags(0)
 	log.SetPrefix("")
-	var reader io.Reader
-	if fi, e := os.Stdin.Stat(); e == nil {
-		if (fi.Mode() & os.ModeCharDevice) == 0 {
-			reader = os.Stdin
-		}
-	}
-	if len(os.Args) == 1 && reader == nil {
-		showAbout()
-	}
+
 	if os.Args[1] == "-h" || os.Args[1] == "--help" {
 		showHelp()
 	}
-	if reader == nil {
-		fileName = os.Args[1]
-		f, err := os.Open(os.Args[1])
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer f.Close()
-		reader = f
-	}
-
-	data, err := io.ReadAll(reader)
+	data, err := os.ReadFile(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
+	}
+	for i, a := range os.Args[1:] {
+		os.Setenv(fmt.Sprintf("%d", i), a)
 	}
 
 	l := lexer.New(string(data))
@@ -59,19 +43,13 @@ func main() {
 		log.Fatal(err)
 	}
 	var commands []*ast.Command
+
 	for cmd, err := p.Next(); err != &parser.ErrEOF; cmd, err = p.Next() {
 		if err != nil {
 			log.Fatal(err)
 		}
 		commands = append(commands, cmd)
 	}
-
-	//shouldWait := false
-
-	if fileName != "" {
-		log.Printf("starting %s\n", fileName)
-	}
-
 	done := make(chan struct{}, len(commands))
 
 	for _, cmd := range commands {
@@ -107,8 +85,5 @@ func main() {
 			return
 		case <-done:
 		}
-	}
-	if fileName != "" {
-		log.Printf("done %s\n", fileName)
 	}
 }
