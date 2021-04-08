@@ -26,7 +26,9 @@ func showHelp() {
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("")
-
+	if len(os.Args) == 1 {
+		showAbout()
+	}
 	if os.Args[1] == "-h" || os.Args[1] == "--help" {
 		showHelp()
 	}
